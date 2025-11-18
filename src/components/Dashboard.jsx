@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, BadgeCheck, AlertTriangle, Clock3, CheckCircle2 } from "lucide-react";
+import { Search } from "lucide-react";
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "";
 
@@ -23,7 +23,6 @@ function StatusBadge({status}){
 }
 
 export default function Dashboard(){
-  const [email, setEmail] = useState("");
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
   const [price, setPrice] = useState(5000);
@@ -31,23 +30,29 @@ export default function Dashboard(){
 
   const filtered = useMemo(()=>items.filter(it=> it.url.toLowerCase().includes(q.toLowerCase())), [items, q]);
 
-  useEffect(()=>{
-    if(!email) return;
-    fetch(`${BACKEND}/api/track?email=${encodeURIComponent(email)}`)
-      .then(r=>r.json()).then(d=> setItems(d.items||[])).catch(()=>{});
-  }, [email]);
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+  const email = typeof window !== 'undefined' ? localStorage.getItem('email') : '';
+
+  const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+  const load = async ()=>{
+    if(!token) return;
+    const r = await fetch(`${BACKEND}/api/track`, { headers: authHeaders });
+    const d = await r.json();
+    setItems(d.items||[]);
+  }
+
+  useEffect(()=>{ load(); }, []);
 
   const createTrack = async ()=>{
-    if(!email) return alert("Enter your email first");
+    if(!token) return alert("Please sign in first");
     setLoading(true);
     try{
-      const r = await fetch(`${BACKEND}/api/track`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, url:q||'https://example.com', target_price: Number(price)})});
+      const r = await fetch(`${BACKEND}/api/track`, {method:'POST', headers:{'Content-Type':'application/json', ...authHeaders}, body: JSON.stringify({url:q||'https://example.com', target_price: Number(price)})});
       const d = await r.json();
       if(r.ok){
         setQ("");
-        const res = await fetch(`${BACKEND}/api/track?email=${encodeURIComponent(email)}`);
-        const data = await res.json();
-        setItems(data.items||[]);
+        await load();
       } else {
         alert(d.detail||'Error');
       }
@@ -67,8 +72,8 @@ export default function Dashboard(){
             <Stat label="Money saved" value={`SEK ${items.filter(i=>i.status==='deal').reduce((a,b)=> a + Math.max(0, (b.target_price||0)-(b.current_price||b.target_price)), 0)}`} />
           </div>
           <div className="md:col-span-2 p-4 rounded-xl bg-white/10 ring-1 ring-white/10">
-            <div className="text-sm text-slate-300 mb-2">Your email</div>
-            <input className="w-full px-3 py-2 rounded-lg bg-white text-slate-900" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
+            <div className="text-sm text-slate-300">Signed in as</div>
+            <div className="text-white font-semibold">{email||'Guest'}</div>
           </div>
         </div>
 

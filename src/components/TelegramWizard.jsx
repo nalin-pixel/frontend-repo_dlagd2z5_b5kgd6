@@ -7,21 +7,24 @@ export default function TelegramWizard(){
   const [step, setStep] = useState(1);
   const [token, setToken] = useState('');
   const [chatId, setChatId] = useState('');
-  const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
+
+  const authHeaders = typeof window !== 'undefined' && localStorage.getItem('token')
+    ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    : {};
 
   const copy = (text)=> navigator.clipboard.writeText(text);
 
   const test = async ()=>{
     setStatus('Testing...');
     try{
-      const r = await fetch(`${BACKEND}/api/telegram/test`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, token, chat_id: chatId})});
+      const r = await fetch(`${BACKEND}/api/telegram/test`, {method:'POST', headers:{'Content-Type':'application/json', ...authHeaders}, body: JSON.stringify({ token, chat_id: chatId })});
       const d = await r.json();
       setStatus(d.ok ? 'Success! Check Telegram.' : `Error: ${JSON.stringify(d.status)}`);
     }catch(e){ setStatus(String(e)); }
   }
   const save = async ()=>{
-    const r = await fetch(`${BACKEND}/api/telegram/save`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, token, chat_id: chatId})});
+    const r = await fetch(`${BACKEND}/api/telegram/save`, {method:'POST', headers:{'Content-Type':'application/json', ...authHeaders}, body: JSON.stringify({ token, chat_id: chatId })});
     const d = await r.json();
     setStatus(d.ok? 'Saved!' : 'Failed to save');
   }
@@ -59,8 +62,8 @@ export default function TelegramWizard(){
               <div className="flex items-center gap-2"><LinkIcon className="text-[#667eea]"/><h3 className="font-semibold">Step 2: Get Chat ID</h3></div>
               <ol className="mt-3 list-decimal list-inside text-sm text-slate-300 space-y-1">
                 <li>Start chat with your bot and send any message</li>
-                <li>Open: https://api.telegram.org/bot[TOKEN]/getUpdates</li>
-                <li>Find "chat":{"id": YOUR_ID}</li>
+                <li>Open the URL: api.telegram.org/bot[TOKEN]/getUpdates</li>
+                <li>Find the chat.id value in the JSON response</li>
               </ol>
               <div className="mt-4 grid gap-2">
                 <input value={chatId} onChange={e=>setChatId(e.target.value)} placeholder="Paste chat ID" className="px-3 py-2 rounded bg-white text-slate-900"/>
@@ -71,7 +74,6 @@ export default function TelegramWizard(){
             <div>
               <div className="flex items-center gap-2"><ShieldCheck className="text-[#667eea]"/><h3 className="font-semibold">Step 3: Test connection</h3></div>
               <div className="mt-3 grid gap-2">
-                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your email" className="px-3 py-2 rounded bg-white text-slate-900"/>
                 <button onClick={test} className="px-4 py-2 rounded bg-gradient-to-r from-[#667eea] to-[#764ba2]">Send test message</button>
                 {status && <div className="text-sm text-slate-200">{status}</div>}
               </div>
